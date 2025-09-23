@@ -1,0 +1,7 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/Dsouza10082/go-bge-m3-embed/benchmark
+cpu: Apple M3 Pro
+BenchmarkSingleEmbedding-12                    1        3637388833 ns/op        144516264 B/op   1753947 allocs/op
+BenchmarkBatchEmbedding10-12                   2        1451649146 ns/op        145474496 B/op   1764692 allocs/op
+BenchmarkBatchEmbedding100-12                  1        1951767084 ns/op        156735400 B/op   1884760 allocs/op
