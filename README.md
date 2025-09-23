@@ -1,5 +1,8 @@
 # Go BGE-M3 Embed
 
+<img width="1024" height="1024" alt="ChatGPT Image Sep 19, 2025, 10_53_49 PM" src="https://github.com/user-attachments/assets/49da27fc-05e7-42a6-bcf6-523d1473a53a" />
+
+
 A high-performance, concurrent Go implementation of BGE-M3 (BAAI General Embedding Model) with integrated vector storage and search capabilities. This library eliminates the need for external vector databases by leveraging the ConcurrentOrderedMap data structure for efficient in-memory vector operations.
 
 ## 🚀 Features
@@ -92,6 +95,8 @@ ort.SetSharedLibraryPath("./onnx/libonnxruntime.dylib")  // macOS
 - **Offline Processing**: No external API dependencies
 - **Low Latency**: In-memory vector operations
 - **Resource Constrained**: Efficient memory usage patterns
+
+<img width="1024" height="1024" alt="ChatGPT Image Sep 19, 2025, 10_44_45 PM" src="https://github.com/user-attachments/assets/fce5b20e-e923-4327-becd-8a7c1c988902" />
 
 ## 💰 Cost Analysis: Python vs Go
 
