@@ -96,9 +96,9 @@ ort.SetSharedLibraryPath("./onnx/libonnxruntime.dylib")  // macOS
 - **Low Latency**: In-memory vector operations
 - **Resource Constrained**: Efficient memory usage patterns
 
-<img width="1024" height="1024" alt="ChatGPT Image Sep 19, 2025, 10_44_45 PM" src="https://github.com/user-attachments/assets/fce5b20e-e923-4327-becd-8a7c1c988902" />
-
 ## 💰 Cost Analysis: Python vs Go
+
+<img width="1024" height="1024" alt="ChatGPT Image Sep 19, 2025, 10_44_45 PM" src="https://github.com/user-attachments/assets/fce5b20e-e923-4327-becd-8a7c1c988902" />
 
 ### Python Implementation Costs
 ```
