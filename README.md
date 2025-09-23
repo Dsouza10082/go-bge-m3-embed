@@ -1105,37 +1105,6 @@ func TestMain(m *testing.M) {
 }
 ```
 
-## 🔍 Vector Search Without External Databases
-
-This library demonstrates how **ConcurrentOrderedMap** eliminates the need for external vector databases:
-
-### Traditional Architecture
-```
-Application → Vector DB API → External Service → Network Latency → Results
-```
-
-### ConcurrentOrderedMap Architecture
-```
-Application → In-Memory ConcurrentOrderedMap → Direct Results
-```
-
-### Key Advantages
-
-1. **Zero Network Latency**: All operations are in-memory
-2. **No External Dependencies**: Self-contained vector operations
-3. **Cost Elimination**: No database hosting or API costs
-4. **Simplified Deployment**: Single binary deployment
-5. **Concurrent Safety**: Built-in thread safety for multi-goroutine access
-6. **Ordered Operations**: Maintains insertion order while supporting vector operations
-
-### ConcurrentOrderedMap Features
-
-- **Concurrent Access**: Lock-free reads, write-protected updates
-- **Vector Operations**: Built-in cosine similarity and k-NN search
-- **Memory Efficiency**: Optimized data structures for large vector collections
-- **Persistence**: JSON serialization/deserialization support
-- **Hybrid Search**: Combined text and vector similarity scoring
-
 ## ⚡ Performance Benchmarks
 
 | Operation | Go + ConcurrentOrderedMap | Python + Pinecone |
