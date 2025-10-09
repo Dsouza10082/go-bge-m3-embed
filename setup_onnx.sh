@@ -72,6 +72,4 @@ done
 echo ""
 echo "Download completed!"
 echo "The ONNX files are in the directory: ./onnx/"
-echo ""
-echo "Now you can build the Docker image with:"
 echo "docker build -t evo-service:latest ."
