@@ -71,4 +71,3 @@ done
 
 echo ""
 echo "Download completed!"
-echo "The ONNX files are in the directory: ./onnx/"
