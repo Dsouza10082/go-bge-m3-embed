@@ -27,7 +27,7 @@ func NewVecStore() *VecStore {
 	}
 }
 
-func (s *VecStore) Upsert(id, text string, vec []float64, meta map[string]interface{}) {
+func (s *VecStore) Upsert(id, text string, vec []float64, meta map[string]interface{}) error {
 	rec := EmbeddingRecord{
 		ID:        id,
 		Text:      text,
@@ -36,6 +36,7 @@ func (s *VecStore) Upsert(id, text string, vec []float64, meta map[string]interf
 		Meta:      meta,
 	}
 	s.M.Set(id, rec)
+	return nil
 }
 
 func (s *VecStore) SaveJSON(path string) error {

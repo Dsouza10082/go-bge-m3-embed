@@ -30,7 +30,7 @@ func (e *EmbeddingModel) Cosine(a, b []float32) float64 {
 	for i := range a {
 		dot += float64(a[i]) * float64(b[i])
 	}
-	return dot // ambos já L2-normalizados (BGE-M3 costuma sair normalizado)
+	return dot
 }
 
 func (e *EmbeddingModel) l2norm(v []float32) {
@@ -75,25 +75,23 @@ func (e *EmbeddingModel) meanPool(lastHidden []float32, seqLen, hidden int, attn
 }
 
 func (e *EmbeddingModel) muteStderr(f func()) {
-	// dup2(stderr -> backup)
 	backup, _ := unix.Dup(int(os.Stderr.Fd()))
 	devnull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	unix.Dup2(int(devnull.Fd()), int(os.Stderr.Fd()))
 	f()
-	// restaura stderr
 	unix.Dup2(backup, int(os.Stderr.Fd()))
 	unix.Close(backup)
 	devnull.Close()
 }
 
-func (e *EmbeddingModel) NewTokenizer() *tokenizer.Tokenizer {
+func (e *EmbeddingModel) NewTokenizer() (*tokenizer.Tokenizer, error) {
 	tk, err := pretrained.FromFile(tokPath)
 	if err != nil {
-		log.Fatalf("tokenizer from file: %v", err)
+		return nil, err
 	}
 
 	tk.WithTruncation(&tokenizer.TruncationParams{MaxLength: 1024})
-	return tk
+	return tk, nil
 }
 
 type Scored struct {
@@ -132,7 +130,7 @@ func (e *EmbeddingModel) TopKCosine(db [][]float32, q []float32, k int) []Scored
 	return best
 }
 
-func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) []float32 {
+func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32, error) {
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -149,6 +147,13 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) []float32 {
 	e.muteStderr(func() {
 		_ = ort.InitializeEnvironment()
 	})
+
+	if !ort.IsInitialized() {
+		err := ort.InitializeEnvironment()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	defer ort.DestroyEnvironment()
 
@@ -171,11 +176,11 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) []float32 {
 	inShape := ort.NewShape(1, int64(seq))
 	tIDs, err := ort.NewTensor[int64](inShape, ids)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	tMask, err := ort.NewTensor[int64](inShape, msk)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer tIDs.Destroy()
 	defer tMask.Destroy()
@@ -183,32 +188,30 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) []float32 {
 	outShape := ort.NewShape(1, 1024)
 	tOut, err := ort.NewEmptyTensor[float32](outShape)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer tOut.Destroy()
 
-	// Cria a sessão já com os feeds/fetches e roda
 	sess, err := ort.NewAdvancedSession(
 		modelPath,
 		[]string{"input_ids", "attention_mask"},
-		[]string{"sentence_embedding"}, // ajuste se seu ONNX usa "dense_vecs" ou "pooled_output"
+		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
 		[]ort.Value{tOut},
 		nil,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer sess.Destroy()
 
 	if err := sess.Run(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	vec := tOut.GetData() // [1,1024] flatten
-	// Normalmente já vem L2-normalizado; vamos só conferir a norma:
+	vec := tOut.GetData()
 	_ = e.l2(vec)
-	return vec
+	return vec, nil
 }
 
 func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
@@ -250,8 +253,8 @@ func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
 		log.Fatal(err)
 	}
 
-	idsInt := en.GetIds()            // []int
-	maskInt := en.GetAttentionMask() // []int
+	idsInt := en.GetIds()
+	maskInt := en.GetAttentionMask()
 	seqLen := len(idsInt)
 
 	ids := make([]int64, seqLen)
@@ -286,7 +289,7 @@ func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
 	sess, _ := ort.NewAdvancedSession(
 		"./onnx/model.onnx",
 		[]string{"input_ids", "attention_mask"},
-		[]string{"sentence_embedding"}, // ou "pooled_output"
+		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
 		[]ort.Value{tOut},
 		nil,
@@ -311,7 +314,8 @@ func (e *EmbeddingModel) Lo64(a []int) []int64 {
 	return r
 }
 
-func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) [][]float32 {
+func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([][]float32, error) {
+
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -329,6 +333,15 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) [][
 		_ = ort.InitializeEnvironment()
 	})
 
+	if !ort.IsInitialized() {
+		err := ort.InitializeEnvironment()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Println("onnxruntime initialized for ", runtime.GOOS)
+
 	defer ort.DestroyEnvironment()
 
 	encs := make([]*tokenizer.Encoding, len(texts))
@@ -336,13 +349,14 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) [][
 	for i, t := range texts {
 		e, err := tk.EncodeSingle(t)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		encs[i] = e
 		if l := len(e.GetIds()); l > maxL {
 			maxL = l
 		}
 	}
+
 	B := len(texts)
 	ids := make([]int64, B*maxL)
 	mask := make([]int64, B*maxL)
@@ -351,7 +365,6 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) [][
 		ii, mm := en.GetIds(), en.GetAttentionMask()
 		copy(ids[b*maxL:b*maxL+len(ii)], e.Lo64(ii))
 		copy(mask[b*maxL:b*maxL+len(mm)], e.Lo64(mm))
-		// resto já fica 0 (padding id=0, mask=0) — ok para BGE
 	}
 
 	inShape := ort.NewShape(int64(B), int64(maxL))
@@ -373,19 +386,18 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) [][
 		nil,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer sess.Destroy()
 
 	if err := sess.Run(); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	flat := tOut.GetData() // len = B*1024
+	flat := tOut.GetData()
 	out := make([][]float32, B)
 	for b := 0; b < B; b++ {
 		out[b] = flat[b*1024 : (b+1)*1024]
-		// normalmente já vem L2=~1.0; se quiser, cheque a norma aqui
 	}
-	return out
+	return out, nil
 }

@@ -12,12 +12,11 @@ import (
 	"github.com/Dsouza10082/go-bge-m3-embed/model"
 )
 
-const MEMORY_PATH = "./agent_memory/vecstore.json"
-
 type GolangBGE3M3Embedder struct {
     EmbeddingModel *model.EmbeddingModel
     VecStore       *model.VecStore
     Verbose        bool
+    memoryPath     string
 }
 
 func NewGolangBGE3M3Embedder() *GolangBGE3M3Embedder {
@@ -25,19 +24,37 @@ func NewGolangBGE3M3Embedder() *GolangBGE3M3Embedder {
         EmbeddingModel: model.NewEmbeddingModel(),
         VecStore:       model.NewVecStore(),
         Verbose:        false,
+        memoryPath:     "./agent_memory",
     }
 }
 
-func (e *GolangBGE3M3Embedder) Embed(text string) []float32 {
-    tk := e.EmbeddingModel.NewTokenizer()
-    vec := e.EmbeddingModel.Embed(tk, text)
-    return vec
+func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
+    tk, err := e.EmbeddingModel.NewTokenizer()
+    if err != nil {
+        return nil, err
+    }
+    vec, err := e.EmbeddingModel.Embed(tk, text)
+    if err != nil {
+        return nil, err
+    }
+    return vec, nil
 }
 
-func (e *GolangBGE3M3Embedder) EmbedBatch(texts []string) [][]float32 {
-    tk := e.EmbeddingModel.NewTokenizer()
-    vecs := e.EmbeddingModel.EmbedBatch(tk, texts)
-    return vecs
+func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder {
+    e.memoryPath = path
+    return e
+}
+
+func (e *GolangBGE3M3Embedder) EmbedBatch(texts []string) ([][]float32, error) {
+    tk, err := e.EmbeddingModel.NewTokenizer()
+    if err != nil {
+        return nil, err
+    }
+    vecs, err := e.EmbeddingModel.EmbedBatch(tk, texts)
+    if err != nil {
+        return nil, err
+    }
+    return vecs, nil
 }
 
 func (e *GolangBGE3M3Embedder) EmbedBGE3MText(text string) []float32 {
@@ -48,15 +65,16 @@ func (e *GolangBGE3M3Embedder) Upsert(id, text string, vec []float32, meta map[s
     e.VecStore.Upsert(id, text, e.VecStore.F32ToF64(vec), meta)
 }
 
-func (e *GolangBGE3M3Embedder) SaveJSON(path string) error {
-    if err := e.VecStore.SaveJSON(MEMORY_PATH); err != nil {
+func (e *GolangBGE3M3Embedder) SaveJSON() error {
+    if err := e.VecStore.SaveJSON(fmt.Sprintf("%s/vec_store.json", e.memoryPath)); err != nil {
         return err
     }
     return nil
 }
 
 func (e GolangBGE3M3Embedder) LoadJSON() (*model.VecStore, error) {
-    return e.VecStore.LoadJSON(MEMORY_PATH)
+
+    return e.VecStore.LoadJSON(e.memoryPath)
 }
 
 func (e *GolangBGE3M3Embedder) SearchVector(queryText string, queryVec []float32, dims, topK int) ([]co.OrderedPair[string, model.EmbeddingRecord], error) {

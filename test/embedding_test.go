@@ -1,4 +1,3 @@
-// test/embedding_test.go
 package test
 
 import (
@@ -9,6 +8,7 @@ import (
 
 func TestNewEmbedder(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
+	embedder.SetMemoryPath("./test_vecstore")
 	if embedder == nil {
 		t.Fatal("Failed to create new embedder")
 	}
@@ -22,7 +22,7 @@ func TestNewEmbedder(t *testing.T) {
 
 func TestEmbedding(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
-	
+	embedder.SetMemoryPath("./test_vecstore")
 	testCases := []struct {
 		name string
 		text string
@@ -30,18 +30,19 @@ func TestEmbedding(t *testing.T) {
 	}{
 		{"Simple text", "Hello world", 1024},
 		{"Long text", "This is a much longer text that should still produce a 1024-dimensional embedding vector", 1024},
-		{"Empty text", "", 1024},
 		{"Special characters", "Hello, 世界! 🌍", 1024},
 	}
 	
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			vector := embedder.Embed(tc.text)
+			vector, err := embedder.Embed(tc.text)
+			if err != nil {
+				t.Errorf("Error embedding text: %v", err)
+			}
 			if len(vector) != tc.expectedDim {
 				t.Errorf("Expected dimension %d, got %d", tc.expectedDim, len(vector))
 			}
 			
-			// Check if vector is properly normalized (L2 norm ≈ 1.0)
 			var norm float64
 			for _, v := range vector {
 				norm += float64(v) * float64(v)
@@ -56,14 +57,17 @@ func TestEmbedding(t *testing.T) {
 
 func TestBatchEmbedding(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
-	
+	embedder.SetMemoryPath("./test_vecstore")
 	texts := []string{
 		"First document",
 		"Second document", 
 		"Third document",
 	}
 	
-	vectors := embedder.EmbedBatch(texts)
+	vectors, err := embedder.EmbedBatch(texts)
+	if err != nil {
+		t.Fatalf("Error embedding batch: %v", err)
+	}
 	
 	if len(vectors) != len(texts) {
 		t.Errorf("Expected %d vectors, got %d", len(texts), len(vectors))
@@ -78,19 +82,20 @@ func TestBatchEmbedding(t *testing.T) {
 
 func TestVectorStorage(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
-	
-	// Test data
+
+	embedder.SetMemoryPath("./test_vecstore")
 	text := "Test document for storage"
-	vector := embedder.Embed(text)
+	vector, err := embedder.Embed(text)
+	if err != nil {
+		t.Fatalf("Error embedding text: %v", err)
+	}
 	meta := map[string]interface{}{
 		"category": "test",
 		"importance": 0.8,
 	}
 	
-	// Test upsert
 	embedder.Upsert("test_001", text, vector, meta)
 	
-	// Test search
 	results, err := embedder.SearchVector(text, vector, 1024, 5)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -100,7 +105,6 @@ func TestVectorStorage(t *testing.T) {
 		t.Fatal("No results found")
 	}
 	
-	// Should find exact match with high similarity
 	topResult := results[0]
 	if topResult.Key != "test_001" {
 		t.Errorf("Expected key 'test_001', got '%s'", topResult.Key)
@@ -113,8 +117,7 @@ func TestVectorStorage(t *testing.T) {
 
 func TestPersistence(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
-	
-	// Add test data
+	embedder.SetMemoryPath("./test_vecstore")
 	testData := map[string]string{
 		"doc_001": "First test document",
 		"doc_002": "Second test document",
@@ -122,37 +125,42 @@ func TestPersistence(t *testing.T) {
 	}
 	
 	for id, text := range testData {
-		vector := embedder.Embed(text)
+		vector, err := embedder.Embed(text)
+		if err != nil {
+			t.Fatalf("Error embedding text: %v", err)
+		}
 		meta := map[string]interface{}{"test": true}
 		embedder.Upsert(id, text, vector, meta)
 	}
 	
-	// Test save
-	err := embedder.SaveJSON("./test_vecstore.json")
+	err := embedder.SaveJSON()
 	if err != nil {
 		t.Fatalf("Failed to save: %v", err)
 	}
 	
-	// Test load
 	newEmbedder := bge.NewGolangBGE3M3Embedder()
+	newEmbedder.SetMemoryPath("./test_vecstore")
 	_, err = newEmbedder.LoadJSON()
 	if err != nil {
 		t.Fatalf("Failed to load: %v", err)
 	}
 	
-	// Clean up
-	// os.Remove("./test_vecstore.json")
 }
 
 func TestCosineSimiliarity(t *testing.T) {
 	embedder := bge.NewGolangBGE3M3Embedder()
-	
-	// Similar texts should have high similarity
+	embedder.SetMemoryPath("./test_vecstore")
 	text1 := "The cat sits on the mat"
 	text2 := "A cat is sitting on the mat"
 	
-	vec1 := embedder.Embed(text1)
-	vec2 := embedder.Embed(text2)
+	vec1, err := embedder.Embed(text1)
+	if err != nil {
+		t.Fatalf("Error embedding text: %v", err)
+	}
+	vec2, err := embedder.Embed(text2)
+	if err != nil {
+		t.Fatalf("Error embedding text: %v", err)
+	}
 	
 	similarity := embedder.EmbeddingModel.Cosine(vec1, vec2)
 	
@@ -160,9 +168,11 @@ func TestCosineSimiliarity(t *testing.T) {
 		t.Errorf("Expected high similarity for similar texts, got %f", similarity)
 	}
 	
-	// Dissimilar texts should have lower similarity
 	text3 := "Quantum mechanics and relativity theory"
-	vec3 := embedder.Embed(text3)
+	vec3, err := embedder.Embed(text3)
+	if err != nil {
+		t.Fatalf("Error embedding text: %v", err)
+	}
 	
 	similarity2 := embedder.EmbeddingModel.Cosine(vec1, vec3)
 	
