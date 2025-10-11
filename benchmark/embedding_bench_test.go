@@ -11,6 +11,7 @@ var embedder *bge.GolangBGE3M3Embedder
 
 func init() {
 	embedder = bge.NewGolangBGE3M3Embedder()
+	embedder.SetMemoryPath("./test_vecstore")
 }
 
 func BenchmarkSingleEmbedding(b *testing.B) {
@@ -18,7 +19,10 @@ func BenchmarkSingleEmbedding(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = embedder.Embed(text)
+		_, err := embedder.Embed(text)
+		if err != nil {
+			b.Fatalf("Error embedding text: %v", err)
+		}
 	}
 }
 
@@ -30,7 +34,10 @@ func BenchmarkBatchEmbedding10(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = embedder.EmbedBatch(texts)
+		_, err := embedder.EmbedBatch(texts)
+		if err != nil {
+			b.Fatalf("Error embedding batch: %v", err)
+		}
 	}
 }
 
@@ -42,7 +49,10 @@ func BenchmarkBatchEmbedding100(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = embedder.EmbedBatch(texts)
+		_, err := embedder.EmbedBatch(texts)
+		if err != nil {
+			b.Fatalf("Error embedding batch: %v", err)
+		}
 	}
 }
 
@@ -50,13 +60,19 @@ func BenchmarkVectorSearch1K(b *testing.B) {
 	// Setup: Create 1000 vectors
 	for i := 0; i < 1000; i++ {
 		text := fmt.Sprintf("Document %d content for search benchmarking", i)
-		vector := embedder.Embed(text)
+		vector, err := embedder.Embed(text)
+		if err != nil {
+			b.Fatalf("Error embedding text: %v", err)
+		}
 		meta := map[string]interface{}{"index": i}
 		embedder.Upsert(fmt.Sprintf("doc_%d", i), text, vector, meta)
 	}
 	
 	queryText := "search query for benchmarking"
-	queryVec := embedder.Embed(queryText)
+	queryVec, err := embedder.Embed(queryText)
+	if err != nil {
+		b.Fatalf("Error embedding query text: %v", err)
+	}
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -68,13 +84,19 @@ func BenchmarkVectorSearch10K(b *testing.B) {
 	// Setup: Create 10000 vectors
 	for i := 0; i < 10000; i++ {
 		text := fmt.Sprintf("Document %d content for large scale search benchmarking", i)
-		vector := embedder.Embed(text)
+		vector, err := embedder.Embed(text)
+		if err != nil {
+			b.Fatalf("Error embedding text: %v", err)
+		}
 		meta := map[string]interface{}{"index": i}
 		embedder.Upsert(fmt.Sprintf("doc_%d", i), text, vector, meta)
 	}
 	
 	queryText := "search query for large scale benchmarking"
-	queryVec := embedder.Embed(queryText)
+	queryVec, err := embedder.Embed(queryText)
+	if err != nil {
+		b.Fatalf("Error embedding query text: %v", err)
+	}
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -86,7 +108,10 @@ func BenchmarkConcurrentEmbedding(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			text := "Concurrent embedding benchmark text"
-			_ = embedder.Embed(text)
+			_, err := embedder.Embed(text)
+			if err != nil {
+				b.Fatalf("Error embedding text: %v", err)
+			}
 		}
 	})
 }
@@ -95,12 +120,18 @@ func BenchmarkConcurrentSearch(b *testing.B) {
 	// Setup vectors for search
 	for i := 0; i < 1000; i++ {
 		text := fmt.Sprintf("Document %d for concurrent search", i)
-		vector := embedder.Embed(text)
+		vector, err := embedder.Embed(text)
+		if err != nil {
+			b.Fatalf("Error embedding text: %v", err)
+		}
 		embedder.Upsert(fmt.Sprintf("doc_%d", i), text, vector, nil)
 	}
 	
 	queryText := "concurrent search query"
-	queryVec := embedder.Embed(queryText)
+	queryVec, err := embedder.Embed(queryText)
+	if err != nil {
+		b.Fatalf("Error embedding query text: %v", err)
+	}
 	
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
