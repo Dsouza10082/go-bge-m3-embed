@@ -73,8 +73,7 @@ func (e *GolangBGE3M3Embedder) SaveJSON() error {
 }
 
 func (e GolangBGE3M3Embedder) LoadJSON() (*model.VecStore, error) {
-
-    return e.VecStore.LoadJSON(e.memoryPath)
+    return e.VecStore.LoadJSON(fmt.Sprintf("%s/vec_store.json", e.memoryPath))
 }
 
 func (e *GolangBGE3M3Embedder) SearchVector(queryText string, queryVec []float32, dims, topK int) ([]co.OrderedPair[string, model.EmbeddingRecord], error) {
