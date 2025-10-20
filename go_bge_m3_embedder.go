@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	co "github.com/Dsouza10082/ConcurrentOrderedMap"
@@ -32,6 +33,8 @@ type GolangBGE3M3Embedder struct {
 	VecStore       *model.VecStore
 	Verbose        bool
 	memoryPath     string
+	onnxPath       string
+	tokPath        string
 }
 
 // NewGolangBGE3M3Embedder creates a new embedder instance with default configuration
@@ -45,6 +48,8 @@ func NewGolangBGE3M3Embedder() *GolangBGE3M3Embedder {
 		VecStore:       model.NewVecStore(),
 		Verbose:        false,
 		memoryPath:     "./agent_memory",
+		onnxPath:       "./onnx/model.onnx",
+		tokPath:        "./onnx/tokenizer.json",
 	}
 }
 
@@ -80,6 +85,8 @@ func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
 //   embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory")
 func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder {
 	e.memoryPath = path
+	
+	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
 	return e
 }
 
@@ -287,7 +294,7 @@ func (e *GolangBGE3M3Embedder) VerifyUpsert(id string) (bool, error) {
 //       log.Fatal(err)
 //   }
 func (e *GolangBGE3M3Embedder) SaveJSON() error {
-	if err := e.VecStore.SaveJSON(fmt.Sprintf("%s/vec_store.json", e.memoryPath)); err != nil {
+	if err := e.VecStore.SaveJSON(filepath.Join(e.memoryPath, "vec_store.json")); err != nil {
 		return fmt.Errorf("failed to save JSON: %w", err)
 	}
 	return nil
@@ -301,7 +308,7 @@ func (e *GolangBGE3M3Embedder) SaveJSON() error {
 //       log.Fatal(err)
 //   }
 func (e GolangBGE3M3Embedder) LoadJSON() (*model.VecStore, error) {
-	vecStore, err := e.VecStore.LoadJSON(fmt.Sprintf("%s/vec_store.json", e.memoryPath))
+	vecStore, err := e.VecStore.LoadJSON(filepath.Join(e.memoryPath, "vec_store.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load JSON: %w", err)
 	}
@@ -413,4 +420,24 @@ func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 	}
 
 	return jsonData, nil
+}
+
+// SetOnnxPath configures the path where the ONNX model is located
+//
+// Example:
+//   embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
+func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
+	e.onnxPath = path
+	e.EmbeddingModel.OnnxPath = filepath.Join(path, "model.onnx")
+	return e
+}
+
+// SetTokPath configures the path where the tokenizer is located
+//
+// Example:
+//   embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
+func (e *GolangBGE3M3Embedder) SetTokPath(path string) *GolangBGE3M3Embedder {
+	e.tokPath = path
+	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
+	return e
 }
