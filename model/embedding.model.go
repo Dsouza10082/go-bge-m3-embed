@@ -5,9 +5,9 @@ import (
 	"log"
 	"math"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
+	"time"
 
 	"github.com/sugarme/tokenizer"
 	"github.com/sugarme/tokenizer/pretrained"
@@ -15,24 +15,20 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	ONNXRUNTIME_MAC     = "libonnxruntime.dylib"
-	ONNXRUNTIME_LINUX   = "libonnxruntime.so"
-	ONNXRUNTIME_WINDOWS = "onnxruntime.dll"
-	VEC_STORE           = "vec_store.json"
-	DEFAULT_ONNX_MODEL  = "model.onnx"
-	DEFAULT_TOK_MODEL   = "tokenizer.json"
-)
-
 type EmbeddingModel struct {
-	Model    string `json:"model"`
-	APIUrl   string `json:"api_url"`
-	OnnxPath string `json:"onnx_path"`
-	TokPath  string `json:"tok_path"`
+	Model         string `json:"model"`
+	APIUrl        string `json:"api_url"`
+	OnnxPath      string `json:"onnx_path"`
+	TokPath       string `json:"tok_path"`
+	Verbose       bool   `json:"verbose"`
+	RuntimePath   string `json:"runtime_path"`
+	OnnxModelPath string `json:"onnx_model_path"`
 }
 
 func NewEmbeddingModel() *EmbeddingModel {
-	return &EmbeddingModel{}
+	return &EmbeddingModel{
+		Verbose: false,
+	}
 }
 
 func (e *EmbeddingModel) Cosine(a, b []float32) float64 {
@@ -141,16 +137,16 @@ func (e *EmbeddingModel) TopKCosine(db [][]float32, q []float32, k int) []Scored
 }
 
 func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32, error) {
-
+	runtimePath := e.RuntimePath
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("PATH")
 	}
 
@@ -203,7 +199,7 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32,
 	defer tOut.Destroy()
 
 	sess, err := ort.NewAdvancedSession(
-		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
+		e.OnnxModelPath,
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -225,16 +221,16 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32,
 }
 
 func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
-
+	runtimePath := e.RuntimePath
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("PATH")
 	}
 
@@ -297,7 +293,7 @@ func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
 	defer tOut.Destroy()
 
 	sess, _ := ort.NewAdvancedSession(
-		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
+		e.OnnxPath,
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -325,16 +321,16 @@ func (e *EmbeddingModel) Lo64(a []int) []int64 {
 }
 
 func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([][]float32, error) {
-
+	runtimePath := e.RuntimePath
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
+		ort.SetSharedLibraryPath(runtimePath)
 		os.Unsetenv("PATH")
 	}
 
@@ -385,7 +381,7 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 	defer tOut.Destroy()
 
 	sess, err := ort.NewAdvancedSession(
-		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
+		e.OnnxModelPath,
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -412,23 +408,48 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 // SetOnnxPath configures the path where the ONNX model is located
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
+//
+//	embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
 func (e *EmbeddingModel) SetOnnxPath(path string) *EmbeddingModel {
-	e.OnnxPath = filepath.Join(path, DEFAULT_ONNX_MODEL)
+	e.OnnxPath = path
 	return e
 }
 
 // SetTokPath configures the path where the tokenizer is located
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
+//
+//	embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
 func (e *EmbeddingModel) SetTokPath(path string) *EmbeddingModel {
-	e.TokPath = filepath.Join(path, DEFAULT_TOK_MODEL)
+	e.TokPath = path
+	if e.Verbose {
+		fmt.Printf("[%s]-embeddingmodel SetTokPath: %s\n", time.Now().Format(time.RFC3339), e.TokPath)
+	}
 	return e
 }
 
-func (e *EmbeddingModel) PrintPath() {
-	fmt.Printf("Onnx Path: %s\n", e.OnnxPath)
-	fmt.Printf("Tok Path: %s\n", e.TokPath)
-	
-}	
+// SetRuntimePath configures the path where the runtime is located
+//
+// Example:
+//
+//	embedder := NewGolangBGE3M3Embedder().SetRuntimePath("./custom_runtime")
+func (e *EmbeddingModel) SetRuntimePath(path string) *EmbeddingModel {
+	e.RuntimePath = path
+	if e.Verbose {
+		fmt.Printf("[%s]-embeddingmodel SetRuntimePath: %s\n", time.Now().Format(time.RFC3339), e.RuntimePath)
+	}
+	return e
+}
+
+// SetOnnxModelPath configures the path where the ONNX model is located
+//
+// Example:
+//
+//	embedder := NewGolangBGE3M3Embedder().SetOnnxModelPath("./custom_onnx/model.onnx")
+func (e *EmbeddingModel) SetOnnxModelPath(path string) *EmbeddingModel {
+	e.OnnxModelPath = path
+	if e.Verbose {
+		fmt.Printf("[%s]-embeddingmodel SetOnnxModelPath: %s\n", time.Now().Format(time.RFC3339), e.OnnxModelPath)
+	}
+	return e
+}
