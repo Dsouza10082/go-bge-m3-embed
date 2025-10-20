@@ -39,8 +39,6 @@ type GolangBGE3M3Embedder struct {
 	VecStore       *model.VecStore
 	Verbose        bool
 	memoryPath     string
-	onnxPath       string
-	tokPath        string
 }
 
 // NewGolangBGE3M3Embedder creates a new embedder instance with default configuration
@@ -90,9 +88,7 @@ func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
 //
 //	embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory")
 func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder {
-	e.memoryPath = path
-
-	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
+	e.memoryPath = filepath.Join(path, DEFAULT_VEC_STORE)
 	return e
 }
 
@@ -446,8 +442,7 @@ func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 //
 //	embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
 func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
-	e.onnxPath = path
-	e.EmbeddingModel.SetOnnxPath(filepath.Join(e.onnxPath, "model.onnx"))
+	e.EmbeddingModel.SetOnnxPath(filepath.Join(path, DEFAULT_ONNX_MODEL))
 	return e
 }
 
@@ -457,7 +452,11 @@ func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
 //
 //	embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
 func (e *GolangBGE3M3Embedder) SetTokPath(path string) *GolangBGE3M3Embedder {
-	e.tokPath = path
-	e.EmbeddingModel.SetTokPath(filepath.Join(e.tokPath, "tokenizer.json"))
+	e.EmbeddingModel.SetTokPath(filepath.Join(path, DEFAULT_TOK_MODEL))
 	return e
+}
+
+func (e *GolangBGE3M3Embedder) PrintPath() {
+	fmt.Printf("Memory Path: %s\n", filepath.Join(e.memoryPath, DEFAULT_VEC_STORE))
+	e.EmbeddingModel.PrintPath()
 }

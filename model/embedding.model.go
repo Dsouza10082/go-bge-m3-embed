@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -143,13 +144,13 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32,
 
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath))
 		os.Unsetenv("PATH")
 	}
 
@@ -413,7 +414,7 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 // Example:
 //   embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
 func (e *EmbeddingModel) SetOnnxPath(path string) *EmbeddingModel {
-	e.OnnxPath = path
+	e.OnnxPath = filepath.Join(path, DEFAULT_ONNX_MODEL)
 	return e
 }
 
@@ -422,6 +423,12 @@ func (e *EmbeddingModel) SetOnnxPath(path string) *EmbeddingModel {
 // Example:
 //   embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
 func (e *EmbeddingModel) SetTokPath(path string) *EmbeddingModel {
-	e.TokPath = path
+	e.TokPath = filepath.Join(path, DEFAULT_TOK_MODEL)
 	return e
 }
+
+func (e *EmbeddingModel) PrintPath() {
+	fmt.Printf("Onnx Path: %s\n", e.OnnxPath)
+	fmt.Printf("Tok Path: %s\n", e.TokPath)
+	
+}	
