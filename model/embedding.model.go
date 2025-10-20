@@ -14,6 +14,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	ONNXRUNTIME_MAC     = "libonnxruntime.dylib"
+	ONNXRUNTIME_LINUX   = "libonnxruntime.so"
+	ONNXRUNTIME_WINDOWS = "onnxruntime.dll"
+	VEC_STORE           = "vec_store.json"
+	DEFAULT_ONNX_MODEL  = "model.onnx"
+	DEFAULT_TOK_MODEL   = "tokenizer.json"
+)
+
 type EmbeddingModel struct {
 	Model    string `json:"model"`
 	APIUrl   string `json:"api_url"`
@@ -22,10 +31,7 @@ type EmbeddingModel struct {
 }
 
 func NewEmbeddingModel() *EmbeddingModel {
-	return &EmbeddingModel{
-		OnnxPath: "./onnx/model.onnx",
-		TokPath:  "./onnx/tokenizer.json",
-	}
+	return &EmbeddingModel{}
 }
 
 func (e *EmbeddingModel) Cosine(a, b []float32) float64 {
@@ -137,13 +143,13 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32,
 
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.dylib"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.so"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "onnxruntime.dll"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
 		os.Unsetenv("PATH")
 	}
 
@@ -196,7 +202,7 @@ func (e *EmbeddingModel) Embed(tk *tokenizer.Tokenizer, text string) ([]float32,
 	defer tOut.Destroy()
 
 	sess, err := ort.NewAdvancedSession(
-		e.OnnxPath,
+		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -221,13 +227,13 @@ func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
 
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.dylib"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.so"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "onnxruntime.dll"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
 		os.Unsetenv("PATH")
 	}
 
@@ -290,7 +296,7 @@ func (e *EmbeddingModel) EmbedBGE3MText(text string) []float32 {
 	defer tOut.Destroy()
 
 	sess, _ := ort.NewAdvancedSession(
-		e.OnnxPath,
+		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -321,13 +327,13 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 
 	switch runtime.GOOS {
 	case "darwin":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.dylib"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_MAC))
 		os.Unsetenv("DYLD_LIBRARY_PATH")
 	case "linux":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "libonnxruntime.so"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_LINUX))
 		os.Unsetenv("LD_LIBRARY_PATH")
 	case "windows":
-		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, "onnxruntime.dll"))
+		ort.SetSharedLibraryPath(filepath.Join(e.OnnxPath, ONNXRUNTIME_WINDOWS))
 		os.Unsetenv("PATH")
 	}
 
@@ -341,8 +347,6 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 			return nil, err
 		}
 	}
-
-	log.Println("onnxruntime initialized for ", runtime.GOOS)
 
 	defer ort.DestroyEnvironment()
 
@@ -380,7 +384,7 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 	defer tOut.Destroy()
 
 	sess, err := ort.NewAdvancedSession(
-		e.OnnxPath,
+		filepath.Join(e.OnnxPath, DEFAULT_ONNX_MODEL),
 		[]string{"input_ids", "attention_mask"},
 		[]string{"sentence_embedding"},
 		[]ort.Value{tIDs, tMask},
@@ -402,4 +406,22 @@ func (e *EmbeddingModel) EmbedBatch(tk *tokenizer.Tokenizer, texts []string) ([]
 		out[b] = flat[b*1024 : (b+1)*1024]
 	}
 	return out, nil
+}
+
+// SetOnnxPath configures the path where the ONNX model is located
+//
+// Example:
+//   embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
+func (e *EmbeddingModel) SetOnnxPath(path string) *EmbeddingModel {
+	e.OnnxPath = path
+	return e
+}
+
+// SetTokPath configures the path where the tokenizer is located
+//
+// Example:
+//   embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
+func (e *EmbeddingModel) SetTokPath(path string) *EmbeddingModel {
+	e.TokPath = path
+	return e
 }

@@ -16,6 +16,12 @@ import (
 	"github.com/Dsouza10082/go-bge-m3-embed/model"
 )
 
+const (
+	DEFAULT_ONNX_MODEL = "model.onnx"
+	DEFAULT_TOK_MODEL  = "tokenizer.json"
+	DEFAULT_VEC_STORE  = "vec_store.json"
+)
+
 // BGEM3Row represents a structured row for embedding content with metadata and status tracking
 type BGEM3Row struct {
 	Metadata       map[string]interface{} `json:"metadata"`
@@ -40,27 +46,26 @@ type GolangBGE3M3Embedder struct {
 // NewGolangBGE3M3Embedder creates a new embedder instance with default configuration
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder()
-//   embedder.SetMemoryPath("./my_memory")
+//
+//	embedder := NewGolangBGE3M3Embedder()
+//	embedder.SetMemoryPath("./my_memory")
 func NewGolangBGE3M3Embedder() *GolangBGE3M3Embedder {
 	return &GolangBGE3M3Embedder{
 		EmbeddingModel: model.NewEmbeddingModel(),
 		VecStore:       model.NewVecStore(),
 		Verbose:        false,
-		memoryPath:     "./agent_memory",
-		onnxPath:       "./onnx/model.onnx",
-		tokPath:        "./onnx/tokenizer.json",
 	}
 }
 
 // Embed generates embeddings for a single text string
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder()
-//   vec, err := embedder.Embed("Hello world")
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	embedder := NewGolangBGE3M3Embedder()
+//	vec, err := embedder.Embed("Hello world")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
 	if text == "" {
 		return nil, errors.New("text cannot be empty")
@@ -82,10 +87,11 @@ func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
 // SetMemoryPath configures the path where vector store data will be saved
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory")
+//
+//	embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory")
 func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder {
 	e.memoryPath = path
-	
+
 	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
 	return e
 }
@@ -93,11 +99,12 @@ func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder 
 // EmbedBatch generates embeddings for multiple text strings in a single batch
 //
 // Example:
-//   texts := []string{"Hello world", "Goodbye world"}
-//   vecs, err := embedder.EmbedBatch(texts)
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	texts := []string{"Hello world", "Goodbye world"}
+//	vecs, err := embedder.EmbedBatch(texts)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e *GolangBGE3M3Embedder) EmbedBatch(texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return nil, errors.New("texts slice cannot be empty")
@@ -119,7 +126,8 @@ func (e *GolangBGE3M3Embedder) EmbedBatch(texts []string) ([][]float32, error) {
 // EmbedBGE3MText generates embeddings using the BGE-M3 model for a single text
 //
 // Example:
-//   vec := embedder.EmbedBGE3MText("Sample text")
+//
+//	vec := embedder.EmbedBGE3MText("Sample text")
 func (e *GolangBGE3M3Embedder) EmbedBGE3MText(text string) []float32 {
 	return e.EmbeddingModel.EmbedBGE3MText(text)
 }
@@ -127,9 +135,10 @@ func (e *GolangBGE3M3Embedder) EmbedBGE3MText(text string) []float32 {
 // Upsert stores or updates a vector embedding with metadata (deprecated, use UpsertWithValidation)
 //
 // Example:
-//   vec, _ := embedder.Embed("Hello world")
-//   meta := map[string]interface{}{"source": "example"}
-//   embedder.Upsert("id1", "Hello world", vec, meta)
+//
+//	vec, _ := embedder.Embed("Hello world")
+//	meta := map[string]interface{}{"source": "example"}
+//	embedder.Upsert("id1", "Hello world", vec, meta)
 func (e *GolangBGE3M3Embedder) Upsert(id, text string, vec []float32, meta map[string]interface{}) {
 	e.VecStore.Upsert(id, text, e.VecStore.F32ToF64(vec), meta)
 }
@@ -137,12 +146,13 @@ func (e *GolangBGE3M3Embedder) Upsert(id, text string, vec []float32, meta map[s
 // UpsertWithValidation stores or updates a vector embedding with validation and error handling
 //
 // Example:
-//   vec, _ := embedder.Embed("Hello world")
-//   meta := map[string]interface{}{"source": "example"}
-//   err := embedder.UpsertWithValidation("id1", "Hello world", vec, meta)
-//   if err != nil {
-//       log.Printf("Failed to upsert: %v", err)
-//   }
+//
+//	vec, _ := embedder.Embed("Hello world")
+//	meta := map[string]interface{}{"source": "example"}
+//	err := embedder.UpsertWithValidation("id1", "Hello world", vec, meta)
+//	if err != nil {
+//	    log.Printf("Failed to upsert: %v", err)
+//	}
 func (e *GolangBGE3M3Embedder) UpsertWithValidation(id, text string, vec []float32, meta map[string]interface{}) error {
 	if id == "" {
 		return errors.New("id cannot be empty")
@@ -170,16 +180,17 @@ func (e *GolangBGE3M3Embedder) UpsertWithValidation(id, text string, vec []float
 // UpsertBGEM3Row stores a BGEM3Row with full validation and status tracking
 //
 // Example:
-//   row := &BGEM3Row{
-//       SerialId: "row1",
-//       Text: "Sample text",
-//       Metadata: map[string]interface{}{"category": "test"},
-//   }
-//   result, err := embedder.UpsertBGEM3Row(row)
-//   if err != nil {
-//       log.Fatal(err)
-//   }
-//   fmt.Printf("Status: %s\n", result.Status)
+//
+//	row := &BGEM3Row{
+//	    SerialId: "row1",
+//	    Text: "Sample text",
+//	    Metadata: map[string]interface{}{"category": "test"},
+//	}
+//	result, err := embedder.UpsertBGEM3Row(row)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("Status: %s\n", result.Status)
 func (e *GolangBGE3M3Embedder) UpsertBGEM3Row(row *BGEM3Row) (*BGEM3Row, error) {
 	if row == nil {
 		return nil, errors.New("row cannot be nil")
@@ -232,14 +243,15 @@ func (e *GolangBGE3M3Embedder) UpsertBGEM3Row(row *BGEM3Row) (*BGEM3Row, error) 
 // UpsertBGEM3RowBatch processes multiple BGEM3Row entries in batch with individual error tracking
 //
 // Example:
-//   rows := []*BGEM3Row{
-//       {SerialId: "row1", Text: "First text"},
-//       {SerialId: "row2", Text: "Second text"},
-//   }
-//   results, errors := embedder.UpsertBGEM3RowBatch(rows)
-//   for i, result := range results {
-//       fmt.Printf("Row %d status: %s\n", i, result.Status)
-//   }
+//
+//	rows := []*BGEM3Row{
+//	    {SerialId: "row1", Text: "First text"},
+//	    {SerialId: "row2", Text: "Second text"},
+//	}
+//	results, errors := embedder.UpsertBGEM3RowBatch(rows)
+//	for i, result := range results {
+//	    fmt.Printf("Row %d status: %s\n", i, result.Status)
+//	}
 func (e *GolangBGE3M3Embedder) UpsertBGEM3RowBatch(rows []*BGEM3Row) ([]*BGEM3Row, []error) {
 	if len(rows) == 0 {
 		return nil, []error{errors.New("rows slice cannot be empty")}
@@ -260,13 +272,14 @@ func (e *GolangBGE3M3Embedder) UpsertBGEM3RowBatch(rows []*BGEM3Row) ([]*BGEM3Ro
 // VerifyUpsert checks if a record exists in the vector store by ID
 //
 // Example:
-//   exists, err := embedder.VerifyUpsert("id1")
-//   if err != nil {
-//       log.Fatal(err)
-//   }
-//   if exists {
-//       fmt.Println("Record exists")
-//   }
+//
+//	exists, err := embedder.VerifyUpsert("id1")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	if exists {
+//	    fmt.Println("Record exists")
+//	}
 func (e *GolangBGE3M3Embedder) VerifyUpsert(id string) (bool, error) {
 	if id == "" {
 		return false, errors.New("id cannot be empty")
@@ -289,10 +302,11 @@ func (e *GolangBGE3M3Embedder) VerifyUpsert(id string) (bool, error) {
 // SaveJSON persists the vector store to disk in JSON format
 //
 // Example:
-//   err := embedder.SaveJSON()
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	err := embedder.SaveJSON()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e *GolangBGE3M3Embedder) SaveJSON() error {
 	if err := e.VecStore.SaveJSON(filepath.Join(e.memoryPath, "vec_store.json")); err != nil {
 		return fmt.Errorf("failed to save JSON: %w", err)
@@ -303,10 +317,11 @@ func (e *GolangBGE3M3Embedder) SaveJSON() error {
 // LoadJSON loads the vector store from disk
 //
 // Example:
-//   vecStore, err := embedder.LoadJSON()
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	vecStore, err := embedder.LoadJSON()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e GolangBGE3M3Embedder) LoadJSON() (*model.VecStore, error) {
 	vecStore, err := e.VecStore.LoadJSON(filepath.Join(e.memoryPath, "vec_store.json"))
 	if err != nil {
@@ -318,11 +333,12 @@ func (e GolangBGE3M3Embedder) LoadJSON() (*model.VecStore, error) {
 // SearchVector performs a vector similarity search
 //
 // Example:
-//   queryVec, _ := embedder.Embed("search query")
-//   results, err := embedder.SearchVector("search query", queryVec, 1024, 5)
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	queryVec, _ := embedder.Embed("search query")
+//	results, err := embedder.SearchVector("search query", queryVec, 1024, 5)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e *GolangBGE3M3Embedder) SearchVector(queryText string, queryVec []float32, dims, topK int) ([]co.OrderedPair[string, model.EmbeddingRecord], error) {
 	if queryText == "" && len(queryVec) == 0 {
 		return nil, errors.New("either queryText or queryVec must be provided")
@@ -345,11 +361,12 @@ func (e *GolangBGE3M3Embedder) SearchVector(queryText string, queryVec []float32
 // SearchVectorFiltered performs a filtered vector similarity search
 //
 // Example:
-//   queryVec, _ := embedder.Embed("search query")
-//   results, err := embedder.SearchVectorFiltered("search query", queryVec, 1024, 5, "category=test")
-//   if err != nil {
-//       log.Fatal(err)
-//   }
+//
+//	queryVec, _ := embedder.Embed("search query")
+//	results, err := embedder.SearchVectorFiltered("search query", queryVec, 1024, 5, "category=test")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 func (e *GolangBGE3M3Embedder) SearchVectorFiltered(queryText string, queryVec []float32, dims, topK int, filter string) ([]co.OrderedPair[string, model.EmbeddingRecord], error) {
 	q := make([]float64, 1024)
 	q[0] = 0.7
@@ -377,11 +394,12 @@ func (e *GolangBGE3M3Embedder) SearchVectorFiltered(queryText string, queryVec [
 // ExportBGEM3RowsToJSON exports all vector store entries as BGEM3Row format to JSON
 //
 // Example:
-//   jsonData, err := embedder.ExportBGEM3RowsToJSON()
-//   if err != nil {
-//       log.Fatal(err)
-//   }
-//   os.WriteFile("export.json", jsonData, 0644)
+//
+//	jsonData, err := embedder.ExportBGEM3RowsToJSON()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	os.WriteFile("export.json", jsonData, 0644)
 func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 	vecStore, err := e.LoadJSON()
 	if err != nil {
@@ -396,12 +414,12 @@ func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 	rows := make([]*BGEM3Row, 0, len(results))
 	for _, result := range results {
 		row := &BGEM3Row{
-			SerialId:  result.Key,
-			Text:      result.Value.Text,
-			Metadata:  result.Value.Meta,
-			Created:   result.Value.CreatedAt.Format(time.RFC3339),
-			Status:    "exported",
-			RowError:  "",
+			SerialId: result.Key,
+			Text:     result.Value.Text,
+			Metadata: result.Value.Meta,
+			Created:  result.Value.CreatedAt.Format(time.RFC3339),
+			Status:   "exported",
+			RowError: "",
 		}
 
 		if masterId, ok := result.Value.Meta["serial_master_id"].(string); ok {
@@ -425,19 +443,21 @@ func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 // SetOnnxPath configures the path where the ONNX model is located
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
+//
+//	embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
 func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
 	e.onnxPath = path
-	e.EmbeddingModel.OnnxPath = filepath.Join(path, "model.onnx")
+	e.EmbeddingModel.SetOnnxPath(filepath.Join(e.onnxPath, "model.onnx"))
 	return e
 }
 
 // SetTokPath configures the path where the tokenizer is located
 //
 // Example:
-//   embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
+//
+//	embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
 func (e *GolangBGE3M3Embedder) SetTokPath(path string) *GolangBGE3M3Embedder {
 	e.tokPath = path
-	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
+	e.EmbeddingModel.SetTokPath(filepath.Join(e.tokPath, "tokenizer.json"))
 	return e
 }
