@@ -16,11 +16,6 @@ import (
 	"github.com/Dsouza10082/go-bge-m3-embed/model"
 )
 
-const (
-	DEFAULT_ONNX_MODEL = "model.onnx"
-	DEFAULT_TOK_MODEL  = "tokenizer.json"
-	DEFAULT_VEC_STORE  = "vec_store.json"
-)
 
 // BGEM3Row represents a structured row for embedding content with metadata and status tracking
 type BGEM3Row struct {
@@ -39,8 +34,6 @@ type GolangBGE3M3Embedder struct {
 	VecStore       *model.VecStore
 	Verbose        bool
 	memoryPath     string
-	onnxPath       string
-	tokPath        string
 }
 
 // NewGolangBGE3M3Embedder creates a new embedder instance with default configuration
@@ -85,14 +78,12 @@ func (e *GolangBGE3M3Embedder) Embed(text string) ([]float32, error) {
 }
 
 // SetMemoryPath configures the path where vector store data will be saved
-//
+// Important: for while is mandatory use the name "vec_store.json" as file store name
 // Example:
 //
-//	embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory")
+//	embedder := NewGolangBGE3M3Embedder().SetMemoryPath("./custom_memory/vec_store.json")
 func (e *GolangBGE3M3Embedder) SetMemoryPath(path string) *GolangBGE3M3Embedder {
 	e.memoryPath = path
-
-	e.EmbeddingModel.TokPath = filepath.Join(path, "tokenizer.json")
 	return e
 }
 
@@ -444,10 +435,13 @@ func (e *GolangBGE3M3Embedder) ExportBGEM3RowsToJSON() ([]byte, error) {
 //
 // Example:
 //
-//	embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx")
+//	embedder := NewGolangBGE3M3Embedder().SetOnnxPath("./custom_onnx/model.onnx")
 func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
-	e.onnxPath = path
-	e.EmbeddingModel.SetOnnxPath(filepath.Join(e.onnxPath, "model.onnx"))
+	absPath, _ := filepath.Abs(path)
+	e.EmbeddingModel.SetOnnxPath(absPath)
+	if e.Verbose {
+		fmt.Printf("[%s]-golangbgem3embedder SetOnnxPath: %s\n", time.Now().Format(time.RFC3339), e.EmbeddingModel.OnnxPath)
+	}
 	return e
 }
 
@@ -455,9 +449,27 @@ func (e *GolangBGE3M3Embedder) SetOnnxPath(path string) *GolangBGE3M3Embedder {
 //
 // Example:
 //
-//	embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok")
+//	embedder := NewGolangBGE3M3Embedder().SetTokPath("./custom_tok/tokenizer.json")
 func (e *GolangBGE3M3Embedder) SetTokPath(path string) *GolangBGE3M3Embedder {
-	e.tokPath = path
-	e.EmbeddingModel.SetTokPath(filepath.Join(e.tokPath, "tokenizer.json"))
+	absPath, _ := filepath.Abs(path)
+	e.EmbeddingModel.SetTokPath(absPath)
+	if e.Verbose {
+		fmt.Printf("[%s]-golangbgem3embedder SetTokPath: %s\n", time.Now().Format(time.RFC3339), e.EmbeddingModel.TokPath)
+	}
+	return e
+}
+
+
+// SetRuntimePath configures the path where the runtime is located
+//
+// Example:
+//
+//	embedder := NewGolangBGE3M3Embedder().SetRuntimePath("./custom_runtime/libonnxruntime.dylib")
+func (e *GolangBGE3M3Embedder) SetRuntimePath(path string) *GolangBGE3M3Embedder {
+	absPath, _ := filepath.Abs(path)
+	e.EmbeddingModel.SetRuntimePath(absPath)
+	if e.Verbose {
+		fmt.Printf("[%s]-golangbgem3embedder SetRuntimePath: %s\n", time.Now().Format(time.RFC3339), e.EmbeddingModel.RuntimePath)
+	}
 	return e
 }

@@ -18,7 +18,7 @@ A high-performance, concurrent Go implementation of BGE-M3 (BAAI General Embeddi
 ## 📦 Installation
 
 ```bash
-go get github.com/Dsouza10082/go-bge-m3-embed
+go get github.com/Dsouza10082/go-bge-m3-embed@v0.4.0
 go get github.com/Dsouza10082/ConcurrentOrderedMap
 ```
 
